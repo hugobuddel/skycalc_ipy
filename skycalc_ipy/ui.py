@@ -78,9 +78,6 @@ class SkyCalc:
                 if self.values[key] < self.allowed[key]:
                     invalid_keys.append(key)
 
-            else:
-                pass
-
         if invalid_keys:
             print("See <SkyCalc>.comments[<key>] for help")
             print("The following entries are invalid:")
@@ -154,6 +151,7 @@ class SkyCalc:
                 tbl[colname].unit = u.Unit("ph s-1 m-2 um-1 arcsec-2")
 
         date_created = dt.now().strftime("%Y-%m-%dT%H:%M:%S")
+        params = {k: (self.values[k], self.comments[k]) for k in self.keys}
         meta_data = {
             "DESCRIPT": "Sky transmission and emission curves",
             "SOURCE": "ESO Skycalc utility",
@@ -162,22 +160,15 @@ class SkyCalc:
             "DATE_CRE": date_created,
             "ETYPE": "TERCurve",
             "EDIM": 1,
-        }
-
-        params = {k: (self.values[k], self.comments[k]) for k in self.keys}
-        meta_data.update(params)
-
+        } | params
         if "tab" in return_type:
             tbl.meta.update(meta_data)
 
             if "ext" in return_type:
-                tbl_return = tbl
-            else:
-                tbl_small = table.Table()
-                tbl_small.add_columns([tbl["lam"], tbl["trans"], tbl["flux"]])
-                tbl_return = tbl_small
-
-            return tbl_return
+                return tbl
+            tbl_small = table.Table()
+            tbl_small.add_columns([tbl["lam"], tbl["trans"], tbl["flux"]])
+            return tbl_small
 
         if "arr" in return_type:
             wave = tbl["lam"].data * tbl["lam"].unit
@@ -213,16 +204,14 @@ class SkyCalc:
             for key, meta_data_value in meta_data.items():
                 hdu0.header[key] = meta_data_value
             hdu1 = fits.table_to_hdu(tbl)
-            hdu = fits.HDUList([hdu0, hdu1])
-
-            return hdu
+            return fits.HDUList([hdu0, hdu1])
 
     def update(self, kwargs):
         self.values.update(kwargs)
 
     def __setitem__(self, key, value):
         if key not in self.keys:
-            raise ValueError(key + " not in self.defaults")
+            raise ValueError(f"{key} not in self.defaults")
         self.values[key] = value
 
     def __getitem__(self, item):
@@ -234,17 +223,15 @@ class SkyCalc:
 
 
 def load_yaml(ipt_str):
-    if ".yaml" in ipt_str.lower():
-        if not os.path.exists(ipt_str):
-            raise ValueError(ipt_str + " not found")
+    if ".yaml" not in ipt_str.lower():
+        return yaml.load(ipt_str, Loader=yaml.FullLoader)
 
-        with open(ipt_str, "r") as fd:
-            fd = "\n".join(fd.readlines())
-        opts_dict = yaml.load(fd, Loader=yaml.FullLoader)
-    else:
-        opts_dict = yaml.load(ipt_str, Loader=yaml.FullLoader)
+    if not os.path.exists(ipt_str):
+        raise ValueError(f"{ipt_str} not found")
 
-    return opts_dict
+    with open(ipt_str, "r") as fd:
+        fd = "\n".join(fd.readlines())
+    return yaml.load(fd, Loader=yaml.FullLoader)
 
 
 def get_almanac_data(
