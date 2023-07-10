@@ -221,8 +221,8 @@ class SkyModel:
         self.stop_on_errors_and_exceptions = True
         self.data = None
         self.server = "https://etimecalret-001.eso.org"
-        self.url = self.server + "/observing/etc/api/skycalc"
-        self.deleter_script_url = self.server + "/observing/etc/api/rmtmp"
+        self.url = f"{self.server}/observing/etc/api/skycalc"
+        self.deleter_script_url = f"{self.server}/observing/etc/api/rmtmp"
         self.bugreport_text = ""
         self.tmpdir = ""
         self.params = {
@@ -325,15 +325,9 @@ class SkyModel:
             self.params["observatory"] = "2400"
         elif self.params["observatory"] == "paranal":
             self.params["observatory"] = "2640"
-        elif (
-            self.params["observatory"] == "3060m"
-            or self.params["observatory"] == "armazones"
-        ):
+        elif self.params["observatory"] in ["3060m", "armazones"]:
             self.params["observatory"] = "3060"
-        elif (
-            self.params["observatory"] == "5000m"
-            or self.params["observatory"] == "highanddry"
-        ):
+        elif self.params["observatory"] in ["5000m", "highanddry"]:
             self.params["observatory"] = "5000"
         else:
             raise ValueError(
@@ -377,7 +371,7 @@ class SkyModel:
             self.data[0].header["DATE"] = "2017-01-07T00:00:00"
         except requests.exceptions.RequestException as err:
             self.handle_exception(
-                err, "Exception raised trying to get FITS data from " + url
+                err, f"Exception raised trying to get FITS data from {url}"
             )
 
     def write(self, local_filename, **kwargs):
@@ -392,14 +386,15 @@ class SkyModel:
     def delete_server_tmpdir(self, tmpdir):
         try:
             response = requests.get(
-                self.deleter_script_url + "?d=" + tmpdir, timeout=self.REQUEST_TIMEOUT
+                f"{self.deleter_script_url}?d={tmpdir}",
+                timeout=self.REQUEST_TIMEOUT,
             )
             deleter_response = response.text.strip()
             if deleter_response != "ok":
-                self.handle_error("Could not delete server tmpdir " + tmpdir)
+                self.handle_error(f"Could not delete server tmpdir {tmpdir}")
         except requests.exceptions.RequestException as err:
             self.handle_exception(
-                err, "Exception raised trying to delete tmp dir " + tmpdir
+                err, f"Exception raised trying to delete tmp dir {tmpdir}"
             )
 
     def call(self, test=False):
@@ -426,7 +421,7 @@ class SkyModel:
             )
         except requests.exceptions.RequestException as err:
             self.handle_exception(
-                err, "Exception raised trying to POST request " + self.url
+                err, f"Exception raised trying to POST request {self.url}"
             )
             return
 
@@ -440,9 +435,9 @@ class SkyModel:
             )
             return
 
-        tmpurl = self.server + "/observing/etc/tmp/" + tmpdir + "/skytable.fits"
-
         if status == "success":
+            tmpurl = f"{self.server}/observing/etc/tmp/{tmpdir}/skytable.fits"
+
             try:
                 # retrive and save FITS data (in memory)
                 self.retrieve_data(tmpurl)
@@ -469,9 +464,6 @@ class SkyModel:
         for key, val in newparams.items():
             if key in self.params:  # valid
                 self.params[key] = val
-            else:
-                pass
-                # print('callwith() ignoring invalid keyword: ', key)
         self.call()
 
     def printparams(self, keys=None):
